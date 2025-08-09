@@ -361,6 +361,15 @@ func (p *Printer) Write(b []byte) (int, error) {
 	}
 	return int(written), nil
 }
+func (p *Printer) Read(b []byte) (int, error) {
+	// var written uint32
+	// err := ReadPrinter(p.h, &b[0], uint32(len(b)), &written)
+	// if err != nil {
+	// 	return 0, err
+	// }
+	// return int(written), nil
+	return 0, nil
+}
 
 func (p *Printer) EndDocument() error {
 	return EndDocPrinter(p.h)

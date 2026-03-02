@@ -2,21 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build windows
-// +build windows
-
 // print command prints text documents to selected printer.
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
 	"github.com/w6xian/printer"
+	"github.com/w6xian/printer/xprint"
 )
 
 var (
@@ -26,7 +28,7 @@ var (
 )
 
 func findDefaultPrinter() string {
-	p, err := printer.Default()
+	p, err := xprint.DefaultPrinter()
 	if err != nil {
 		return ""
 	}
@@ -34,13 +36,33 @@ func findDefaultPrinter() string {
 }
 
 func listPrinters() error {
-	printers, err := printer.ReadNames()
-	if err != nil {
-		return err
+	defaultPrinter, _ := xprint.DefaultPrinter()
+	if runtime.GOOS == "windows" {
+		printers, err := printer.ReadNames()
+		if err != nil {
+			return err
+		}
+		for i, p := range printers {
+			s := " "
+			if p == defaultPrinter {
+				s = "*"
+			}
+			fmt.Printf(" %s %d. %s\n", s, i, p)
+		}
+		return nil
 	}
-	defaultPrinter, err := printer.Default()
+
+	out, err := exec.Command("lpstat", "-p").CombinedOutput()
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+	}
+	lines := strings.Split(string(out), "\n")
+	printers := make([]string, 0, len(lines))
+	for _, line := range lines {
+		f := strings.Fields(line)
+		if len(f) >= 2 && strings.ToLower(f[0]) == "printer" {
+			printers = append(printers, f[1])
+		}
 	}
 	for i, p := range printers {
 		s := " "
@@ -58,9 +80,24 @@ func selectPrinter() (string, error) {
 		// must be a printer name
 		return *printerId, nil
 	}
-	printers, err := printer.ReadNames()
-	if err != nil {
-		return "", err
+	var printers []string
+	if runtime.GOOS == "windows" {
+		printers, err = printer.ReadNames()
+		if err != nil {
+			return "", err
+		}
+	} else {
+		out, err := exec.Command("lpstat", "-p").CombinedOutput()
+		if err != nil {
+			return "", fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+		}
+		lines := strings.Split(string(out), "\n")
+		for _, line := range lines {
+			f := strings.Fields(line)
+			if len(f) >= 2 && strings.ToLower(f[0]) == "printer" {
+				printers = append(printers, f[1])
+			}
+		}
 	}
 	if n < 0 {
 		return "", fmt.Errorf("printer index (%d) cannot be negative", n)
@@ -71,29 +108,26 @@ func selectPrinter() (string, error) {
 	return printers[n], nil
 }
 
-func printOneDocument(printerName, documentName string, lines []string) error {
-	p, err := printer.Open(printerName)
+func printTextFile(printerName, documentName, path string) error {
+	output, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	defer p.Close()
-
-	err = p.StartRawDocument(documentName)
-	if err != nil {
-		return err
-	}
-	defer p.EndDocument()
-
-	err = p.StartPage()
-	if err != nil {
-		return err
-	}
-
+	lines := strings.Split(strings.ReplaceAll(string(output), "\r\n", "\n"), "\n")
+	var buf bytes.Buffer
 	for _, line := range lines {
-		fmt.Fprintf(p, "%s\r\n", line)
+		if line == "" {
+			buf.WriteString("\r\n")
+			continue
+		}
+		buf.WriteString(line)
+		buf.WriteString("\r\n")
 	}
-
-	return p.EndPage()
+	return xprint.PrintRaw(buf.Bytes(), xprint.Options{
+		Printer: printerName,
+		Copies:  *copies,
+		JobName: documentName,
+	})
 }
 
 func printDocument(path string) error {
@@ -101,29 +135,32 @@ func printDocument(path string) error {
 		return fmt.Errorf("number of copies to print (%d) cannot be negative", *copies)
 	}
 
-	output, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	lines := strings.Split(string(output), "\n")
-
 	printerName, err := selectPrinter()
 	if err != nil {
 		return err
 	}
 
-	for i := 0; i < *copies; i++ {
-		err := printOneDocument(printerName, path, lines)
-		if err != nil {
-			return err
-		}
+	documentName := filepath.Base(path)
+	if strings.HasPrefix(strings.ToLower(path), "http://") || strings.HasPrefix(strings.ToLower(path), "https://") {
+		return xprint.PrintURL(path, xprint.Options{
+			Printer: printerName,
+			Copies:  *copies,
+			JobName: documentName,
+		})
 	}
-	return nil
+	if strings.HasSuffix(strings.ToLower(path), ".pdf") {
+		return xprint.PrintPDF(path, xprint.Options{
+			Printer: printerName,
+			Copies:  *copies,
+			JobName: documentName,
+		})
+	}
+	return printTextFile(printerName, documentName, path)
 }
 
 func usage() {
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "usage: print [-n=<copies>] [-p=<printer>] <file-path-to-print>\n")
+	fmt.Fprintf(os.Stderr, "usage: print [-n=<copies>] [-p=<printer>] <file-path|pdf|url>\n")
 	fmt.Fprintf(os.Stderr, "       or\n")
 	fmt.Fprintf(os.Stderr, "       print -l\n")
 	fmt.Fprintln(os.Stderr)

@@ -28,6 +28,14 @@ func DefaultPrinter() (string, error) {
 	return "", nil
 }
 
+func AllPrinters() ([]string, error) {
+	out, err := combinedOutput("lpstat", "-p")
+	if err != nil {
+		return nil, err
+	}
+	return strings.Split(strings.TrimSpace(out), "\n"), nil
+}
+
 func printRawPlatform(data []byte, opts Options) error {
 	dir := strings.TrimSpace(opts.TempDir)
 	if dir == "" {

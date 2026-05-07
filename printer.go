@@ -131,6 +131,11 @@ func Default() (string, error) {
 	return syscall.UTF16ToString(b), nil
 }
 
+// alias
+func All() ([]string, error) {
+	return ReadNames()
+}
+
 // ReadNames return printer names on the system
 func ReadNames() ([]string, error) {
 	const flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS

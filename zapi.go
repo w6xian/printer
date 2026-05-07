@@ -29,7 +29,7 @@ var (
 )
 
 func GetDefaultPrinter(buf *uint16, bufN *uint32) (err error) {
-	r1, _, e1 := syscall.Syscall(procGetDefaultPrinterW.Addr(), 2, uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(bufN)), 0)
+	r1, _, e1 := syscall.SyscallN(procGetDefaultPrinterW.Addr(), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(bufN)))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
@@ -41,7 +41,7 @@ func GetDefaultPrinter(buf *uint16, bufN *uint32) (err error) {
 }
 
 func ClosePrinter(h syscall.Handle) (err error) {
-	r1, _, e1 := syscall.Syscall(procClosePrinter.Addr(), 1, uintptr(h), 0, 0)
+	r1, _, e1 := syscall.SyscallN(procClosePrinter.Addr(), uintptr(h))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
@@ -53,7 +53,7 @@ func ClosePrinter(h syscall.Handle) (err error) {
 }
 
 func OpenPrinter(name *uint16, h *syscall.Handle, defaults uintptr) (err error) {
-	r1, _, e1 := syscall.Syscall(procOpenPrinterW.Addr(), 3, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(h)), uintptr(defaults))
+	r1, _, e1 := syscall.SyscallN(procOpenPrinterW.Addr(), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(h)), uintptr(defaults))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
@@ -65,7 +65,7 @@ func OpenPrinter(name *uint16, h *syscall.Handle, defaults uintptr) (err error) 
 }
 
 func StartDocPrinter(h syscall.Handle, level uint32, docinfo *DOC_INFO_1) (err error) {
-	r1, _, e1 := syscall.Syscall(procStartDocPrinterW.Addr(), 3, uintptr(h), uintptr(level), uintptr(unsafe.Pointer(docinfo)))
+	r1, _, e1 := syscall.SyscallN(procStartDocPrinterW.Addr(), uintptr(h), uintptr(level), uintptr(unsafe.Pointer(docinfo)))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
@@ -77,7 +77,7 @@ func StartDocPrinter(h syscall.Handle, level uint32, docinfo *DOC_INFO_1) (err e
 }
 
 func EndDocPrinter(h syscall.Handle) (err error) {
-	r1, _, e1 := syscall.Syscall(procEndDocPrinter.Addr(), 1, uintptr(h), 0, 0)
+	r1, _, e1 := syscall.SyscallN(procEndDocPrinter.Addr(), uintptr(h))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
@@ -89,7 +89,7 @@ func EndDocPrinter(h syscall.Handle) (err error) {
 }
 
 func WritePrinter(h syscall.Handle, buf *byte, bufN uint32, written *uint32) (err error) {
-	r1, _, e1 := syscall.Syscall6(procWritePrinter.Addr(), 4, uintptr(h), uintptr(unsafe.Pointer(buf)), uintptr(bufN), uintptr(unsafe.Pointer(written)), 0, 0)
+	r1, _, e1 := syscall.SyscallN(procWritePrinter.Addr(), uintptr(h), uintptr(unsafe.Pointer(buf)), uintptr(bufN), uintptr(unsafe.Pointer(written)))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
@@ -101,7 +101,7 @@ func WritePrinter(h syscall.Handle, buf *byte, bufN uint32, written *uint32) (er
 }
 
 func StartPagePrinter(h syscall.Handle) (err error) {
-	r1, _, e1 := syscall.Syscall(procStartPagePrinter.Addr(), 1, uintptr(h), 0, 0)
+	r1, _, e1 := syscall.SyscallN(procStartPagePrinter.Addr(), uintptr(h))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
@@ -113,7 +113,7 @@ func StartPagePrinter(h syscall.Handle) (err error) {
 }
 
 func EndPagePrinter(h syscall.Handle) (err error) {
-	r1, _, e1 := syscall.Syscall(procEndPagePrinter.Addr(), 1, uintptr(h), 0, 0)
+	r1, _, e1 := syscall.SyscallN(procEndPagePrinter.Addr(), uintptr(h))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
@@ -125,7 +125,7 @@ func EndPagePrinter(h syscall.Handle) (err error) {
 }
 
 func EnumPrinters(flags uint32, name *uint16, level uint32, buf *byte, bufN uint32, needed *uint32, returned *uint32) (err error) {
-	r1, _, e1 := syscall.Syscall9(procEnumPrintersW.Addr(), 7, uintptr(flags), uintptr(unsafe.Pointer(name)), uintptr(level), uintptr(unsafe.Pointer(buf)), uintptr(bufN), uintptr(unsafe.Pointer(needed)), uintptr(unsafe.Pointer(returned)), 0, 0)
+	r1, _, e1 := syscall.SyscallN(procEnumPrintersW.Addr(), uintptr(flags), uintptr(unsafe.Pointer(name)), uintptr(level), uintptr(unsafe.Pointer(buf)), uintptr(bufN), uintptr(unsafe.Pointer(needed)), uintptr(unsafe.Pointer(returned)))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
@@ -137,7 +137,7 @@ func EnumPrinters(flags uint32, name *uint16, level uint32, buf *byte, bufN uint
 }
 
 func GetPrinterDriver(h syscall.Handle, env *uint16, level uint32, di *byte, n uint32, needed *uint32) (err error) {
-	r1, _, e1 := syscall.Syscall6(procGetPrinterDriverW.Addr(), 6, uintptr(h), uintptr(unsafe.Pointer(env)), uintptr(level), uintptr(unsafe.Pointer(di)), uintptr(n), uintptr(unsafe.Pointer(needed)))
+	r1, _, e1 := syscall.SyscallN(procGetPrinterDriverW.Addr(), uintptr(h), uintptr(unsafe.Pointer(env)), uintptr(level), uintptr(unsafe.Pointer(di)), uintptr(n), uintptr(unsafe.Pointer(needed)))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
@@ -149,7 +149,7 @@ func GetPrinterDriver(h syscall.Handle, env *uint16, level uint32, di *byte, n u
 }
 
 func EnumJobs(h syscall.Handle, firstJob uint32, noJobs uint32, level uint32, buf *byte, bufN uint32, bytesNeeded *uint32, jobsReturned *uint32) (err error) {
-	r1, _, e1 := syscall.Syscall9(procEnumJobsW.Addr(), 8, uintptr(h), uintptr(firstJob), uintptr(noJobs), uintptr(level), uintptr(unsafe.Pointer(buf)), uintptr(bufN), uintptr(unsafe.Pointer(bytesNeeded)), uintptr(unsafe.Pointer(jobsReturned)), 0)
+	r1, _, e1 := syscall.SyscallN(procEnumJobsW.Addr(), uintptr(h), uintptr(firstJob), uintptr(noJobs), uintptr(level), uintptr(unsafe.Pointer(buf)), uintptr(bufN), uintptr(unsafe.Pointer(bytesNeeded)), uintptr(unsafe.Pointer(jobsReturned)))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)

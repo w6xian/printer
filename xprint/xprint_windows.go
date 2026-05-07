@@ -4,7 +4,8 @@
 package xprint
 
 import (
-	"fmt"
+	"embed"
+	_ "embed"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,8 +14,15 @@ import (
 	"github.com/w6xian/printer"
 )
 
+//go:embed PDFtoPrinter.exe
+var pdfPrinter embed.FS
+
 func DefaultPrinter() (string, error) {
 	return printer.Default()
+}
+
+func AllPrinters() ([]string, error) {
+	return printer.All()
 }
 
 func printRawPlatform(data []byte, opts Options) error {
@@ -44,16 +52,25 @@ func printRawPlatform(data []byte, opts Options) error {
 }
 
 func printPDFPlatform(pdfPath string, opts Options) error {
-	sumatra, err := sumatraPath(opts)
+	// https://raw.githubusercontent.com/emendelson/pdftoprinter/refs/heads/main/PDFtoPrinter.exe
+
+	// todo pdfPrinter 生成 PDFtoPrinter.exe
+	// pdfPrinter 是 PDFtoPrinter.exe 的字节流 生成临时文件
+	tempPath, err := os.MkdirTemp("", "xprint")
 	if err != nil {
 		return err
 	}
-	args := []string{"-print-to", opts.Printer, "-silent"}
-	if opts.Copies > 1 {
-		args = append(args, "-print-settings", fmt.Sprintf("copies=%d", opts.Copies))
+	f, err := pdfPrinter.ReadFile("PDFtoPrinter.exe")
+	if err != nil {
+		return err
 	}
-	args = append(args, pdfPath)
-	return runCmd(sumatra, args...)
+	name := filepath.Join(tempPath, "PDFtoPrinter.exe")
+	if err := os.WriteFile(name, f, 0755); err != nil {
+		return err
+	}
+	// 清除临时文件夹
+	defer os.RemoveAll(tempPath)
+	return runCmd(name, pdfPath, opts.Printer)
 }
 
 func chromePath(opts Options) (string, error) {
@@ -69,28 +86,4 @@ func chromePath(opts Options) (string, error) {
 		}
 	}
 	return "", ErrNoChrome
-}
-
-func sumatraPath(opts Options) (string, error) {
-	if p := strings.TrimSpace(opts.Sumatra); p != "" {
-		return p, nil
-	}
-	if p := strings.TrimSpace(os.Getenv("XPRINT_SUMATRA")); p != "" {
-		return p, nil
-	}
-	if p, err := exec.LookPath("SumatraPDF.exe"); err == nil {
-		return p, nil
-	}
-	for _, p := range []string{
-		filepath.Join(os.Getenv("ProgramFiles"), "SumatraPDF", "SumatraPDF.exe"),
-		filepath.Join(os.Getenv("ProgramFiles(x86)"), "SumatraPDF", "SumatraPDF.exe"),
-	} {
-		if strings.TrimSpace(p) == "" {
-			continue
-		}
-		if _, err := os.Stat(p); err == nil {
-			return p, nil
-		}
-	}
-	return "", ErrNoSumatra
 }
